@@ -11,8 +11,17 @@
     crossorigin=""
   />
   <style>
-    #map { height: 600px; }
-    #filters { margin: 10px 0; }
+ html, body {
+  height: 100%;
+  margin: 0;
+  padding: 0;
+}
+#map {
+  height: calc(100vh - 80px);
+}
+#filters {
+  margin: 10px;
+}
   </style>
 </head>
 <body>
@@ -76,7 +85,9 @@
       });
     });
 
-    function renderFilters(categories) {
+    function renderFilters(categories)
+    setTimeout(() => { map.invalidateSize(); }, 200);
+    {
       const filtersDiv = document.getElementById('filters');
       filtersDiv.innerHTML = '<strong>Filtrar por categoría:</strong><br>';
       categories.forEach(category => {
