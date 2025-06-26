@@ -1,75 +1,79 @@
 <!DOCTYPE html>
-<html>
+<html lang="es">
 <head>
-    <meta charset="utf-8" />
-    <title>Mapa Interactivo con CSV</title>
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta charset="UTF-8" />
+  <title>Mapa de coordenadas con selección</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  
+  <!-- Leaflet CSS -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+  <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
 
-    <!-- Leaflet CSS -->
-    <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+  <!-- PapaParse -->
+  <script src="https://unpkg.com/papaparse@5.3.2/papaparse.min.js"></script>
 
-    <!-- PapaParse -->
-    <script src="https://unpkg.com/papaparse@5.3.2/papaparse.min.js"></script>
-
-    <!-- Leaflet JS -->
-    <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
-
-    <style>
-        html, body {
-            height: 100%;
-            margin: 0;
-            padding: 0;
-        }
-        #map { height: 100vh; }
-    </style>
+  <style>
+    html, body, #map {
+      height: 100%;
+      margin: 0;
+      padding: 0;
+    }
+  </style>
 </head>
 <body>
-    <div id="map"></div>
+  <div id="map"></div>
 
-    <script>
-        const map = L.map('map').setView([23.6345, -102.5528], 5);
+  <script>
+    const map = L.map('map').setView([23.6345, -102.5528], 5); // México
 
-        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-            attribution: '© OpenStreetMap contributors'
-        }).addTo(map);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      attribution: '© OpenStreetMap contributors'
+    }).addTo(map);
 
-        const layerGroups = {};
+    const layerGroups = {};
+    const categoriaColors = {};
 
-        Papa.parse("datos.csv", {
-            download: true,
-            header: true,
-            complete: function(results) {
-                const data = results.data;
+    function asignarColor(categoria) {
+      const colores = ['red', 'blue', 'green', 'orange', 'purple', 'brown'];
+      if (!categoriaColors[categoria]) {
+        categoriaColors[categoria] = colores[Object.keys(categoriaColors).length % colores.length];
+      }
+      return categoriaColors[categoria];
+    }
 
-                data.forEach(row => {
-                    const lat = parseFloat(row.latitud);
-                    const lng = parseFloat(row.longitud);
-                    const nombre = row.nombre || "Sin nombre";
-                    const color = row.color || 'blue';
-                    const categoria = row.categoria || 'Otros';
+    Papa.parse("datos.csv", {
+      download: true,
+      header: true,
+      complete: function(results) {
+        results.data.forEach(row => {
+          const lat = parseFloat(row.latitud);
+          const lng = parseFloat(row.longitud);
+          const nombre = row.nombre || 'Sin nombre';
+          const categoria = row.categoria || 'Otros';
 
-                    if (!lat || !lng) return;
+          if (!lat || !lng) return;
 
-                    if (!layerGroups[categoria]) {
-                        layerGroups[categoria] = L.layerGroup().addTo(map);
-                    }
+          if (!layerGroups[categoria]) {
+            layerGroups[categoria] = L.layerGroup();
+          }
 
-                    const icon = L.icon({
-                        iconUrl: `https://chart.googleapis.com/chart?chst=d_map_pin_letter&chld=%E2%80%A2|${color}`,
-                        iconSize: [21, 34],
-                        iconAnchor: [10, 34],
-                        popupAnchor: [0, -30]
-                    });
+          const color = asignarColor(categoria);
 
-                    const marker = L.marker([lat, lng], { icon }).bindPopup(nombre);
-                    layerGroups[categoria].addLayer(marker);
-                });
+          const icon = L.icon({
+            iconUrl: `https://chart.googleapis.com/chart?chst=d_map_pin_letter&chld=%E2%80%A2|${color}`,
+            iconSize: [21, 34],
+            iconAnchor: [10, 34],
+            popupAnchor: [0, -30]
+          });
 
-                L.control.layers(null, layerGroups, { collapsed: false }).addTo(map);
-
-                setTimeout(() => { map.invalidateSize(); }, 200);
-            }
+          const marker = L.marker([lat, lng], { icon }).bindPopup(`<b>${nombre}</b><br>Lat: ${lat}<br>Lng: ${lng}`);
+          layerGroups[categoria].addLayer(marker);
         });
-    </script>
+
+        Object.values(layerGroups).forEach(lg => lg.addTo(map));
+        L.control.layers(null, layerGroups, { collapsed: false }).addTo(map);
+      }
+    });
+  </script>
 </body>
 </html>
