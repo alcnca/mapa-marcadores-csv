@@ -1,127 +1,80 @@
 <!DOCTYPE html>
-<html lang="es">
+<html>
 <head>
-  <meta charset="UTF-8">
-  <title>Mapa con marcadores desde CSV</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <link 
-    rel="stylesheet" 
-    href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" 
-    integrity="sha384-sA+e+h+RWlqIpl97TmkY7c/ErjMNJGhK91eqG5sT+9ViN0kh41V4Ilj+oYyVXjGi" 
-    crossorigin=""
-  />
-  <style>
- html, body {
-  height: 100%;
-  margin: 0;
-  padding: 0;
-}
-#map {
-  height: calc(100vh - 80px);
-}
-#filters {
-  margin: 10px;
-}
-  </style>
+    <meta charset="utf-8" />
+    <title>Mapa Interactivo con CSV</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <!-- Leaflet CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+
+    <!-- PapaParse -->
+    <script src="https://unpkg.com/papaparse@5.3.2/papaparse.min.js"></script>
+
+    <!-- Leaflet JS -->
+    <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+
+    <style>
+        html, body {
+            height: 100%;
+            margin: 0;
+            padding: 0;
+        }
+        #map { height: 100vh; }
+    </style>
 </head>
 <body>
+    <div id="map"></div>
 
-  <h2>Mapa con marcadores desde CSV</h2>
+    <script>
+        // Crear el mapa centrado
+        const map = L.map('map').setView([23.6345, -102.5528], 5);
 
-  <input type="file" id="csvFile" accept=".csv" />
-  <div id="filters"></div>
-  <div id="map"></div>
+        // Agregar capa base
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '© OpenStreetMap contributors'
+        }).addTo(map);
 
-  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
-  <script>
-    const map = L.map('map').setView([20.97, -89.62], 6); // Centrado en Yucatán
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-      attribution: '&copy; OpenStreetMap contributors'
-    }).addTo(map);
+        // Almacena grupos por categoría
+        const layerGroups = {};
 
-    let markers = [];
-    let categoryLayers = {};
+        // Cargar CSV
+        Papa.parse("datos.csv", {
+            download: true,
+            header: true,
+            complete: function(results) {
+                const data = results.data;
 
-    document.getElementById('csvFile').addEventListener('change', function(e) {
-      const file = e.target.files[0];
-      Papa.parse(file, {
-        header: true,
-        dynamicTyping: true,
-        complete: function(results) {
-          clearMap();
-          const data = results.data;
-          const categories = new Set();
-          data.forEach(row => {
-            const lat = row.latitud || row.Latitud;
-            const lng = row.longitud || row.Longitud;
-            const name = row.nombre || row.Nombre || 'Sin nombre';
-            const color = row.color || row.Color || 'blue';
-            const category = row.categoria || row.Categoria || 'General';
+                data.forEach(row => {
+                    const lat = parseFloat(row.latitud);
+                    const lng = parseFloat(row.longitud);
+                    const nombre = row.nombre;
+                    const color = row.color || 'blue';
+                    const categoria = row.categoria || 'Otros';
 
-            if (!lat || !lng) return;
+                    if (!layerGroups[categoria]) {
+                        layerGroups[categoria] = L.layerGroup().addTo(map);
+                    }
 
-            const marker = L.circleMarker([lat, lng], {
-              radius: 8,
-              color: color,
-              fillColor: color,
-              fillOpacity: 0.8
-            }).bindPopup(`<strong>${name}</strong><br>Categoría: ${category}`);
+                    // Crear icono personalizado por color
+                    const icon = L.icon({
+                        iconUrl: `https://chart.googleapis.com/chart?chst=d_map_pin_letter&chld=%E2%80%A2|${color}`,
+                        iconSize: [21, 34],
+                        iconAnchor: [10, 34],
+                        popupAnchor: [0, -30]
+                    });
 
-            if (!categoryLayers[category]) {
-              categoryLayers[category] = L.layerGroup();
+                    const marker = L.marker([lat, lng], { icon: icon }).bindPopup(nombre);
+                    layerGroups[categoria].addLayer(marker);
+                });
+
+                // Control de capas
+                L.control.layers(null, layerGroups, { collapsed: false }).addTo(map);
+
+                // Forzar recálculo de tamaño del mapa para evitar errores visuales
+                setTimeout(() => { map.invalidateSize(); }, 200);
             }
-
-            marker.addTo(categoryLayers[category]);
-            markers.push(marker);
-            categories.add(category);
-          });
-
-          // Mostrar todos los grupos
-          Object.values(categoryLayers).forEach(layer => layer.addTo(map));
-          // Agregar filtros
-          renderFilters([...categories]);
-        }
-      });
-    });
-
-    function renderFilters(categories)
-    setTimeout(() => { map.invalidateSize(); }, 200);
-    {
-      const filtersDiv = document.getElementById('filters');
-      filtersDiv.innerHTML = '<strong>Filtrar por categoría:</strong><br>';
-      categories.forEach(category => {
-        const checkbox = document.createElement('input');
-        checkbox.type = 'checkbox';
-        checkbox.id = category;
-        checkbox.checked = true;
-        checkbox.addEventListener('change', function() {
-          if (this.checked) {
-            categoryLayers[category].addTo(map);
-          } else {
-            map.removeLayer(categoryLayers[category]);
-          }
         });
-
-        const label = document.createElement('label');
-        label.htmlFor = category;
-        label.textContent = category;
-
-        filtersDiv.appendChild(checkbox);
-        filtersDiv.appendChild(label);
-        filtersDiv.appendChild(document.createElement('br'));
-      });
-    }
-
-    function clearMap() {
-      markers.forEach(m => map.removeLayer(m));
-      markers = [];
-      for (let key in categoryLayers) {
-        map.removeLayer(categoryLayers[key]);
-      }
-      categoryLayers = {};
-      document.getElementById('filters').innerHTML = '';
-    }
-  </script>
+    </script>
 </body>
 </html>
