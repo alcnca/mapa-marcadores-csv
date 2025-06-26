@@ -27,18 +27,14 @@
     <div id="map"></div>
 
     <script>
-        // Crear el mapa centrado
         const map = L.map('map').setView([23.6345, -102.5528], 5);
 
-        // Agregar capa base
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
             attribution: '© OpenStreetMap contributors'
         }).addTo(map);
 
-        // Almacena grupos por categoría
         const layerGroups = {};
 
-        // Cargar CSV
         Papa.parse("datos.csv", {
             download: true,
             header: true,
@@ -48,15 +44,16 @@
                 data.forEach(row => {
                     const lat = parseFloat(row.latitud);
                     const lng = parseFloat(row.longitud);
-                    const nombre = row.nombre;
+                    const nombre = row.nombre || "Sin nombre";
                     const color = row.color || 'blue';
                     const categoria = row.categoria || 'Otros';
+
+                    if (!lat || !lng) return;
 
                     if (!layerGroups[categoria]) {
                         layerGroups[categoria] = L.layerGroup().addTo(map);
                     }
 
-                    // Crear icono personalizado por color
                     const icon = L.icon({
                         iconUrl: `https://chart.googleapis.com/chart?chst=d_map_pin_letter&chld=%E2%80%A2|${color}`,
                         iconSize: [21, 34],
@@ -64,14 +61,12 @@
                         popupAnchor: [0, -30]
                     });
 
-                    const marker = L.marker([lat, lng], { icon: icon }).bindPopup(nombre);
+                    const marker = L.marker([lat, lng], { icon }).bindPopup(nombre);
                     layerGroups[categoria].addLayer(marker);
                 });
 
-                // Control de capas
                 L.control.layers(null, layerGroups, { collapsed: false }).addTo(map);
 
-                // Forzar recálculo de tamaño del mapa para evitar errores visuales
                 setTimeout(() => { map.invalidateSize(); }, 200);
             }
         });
